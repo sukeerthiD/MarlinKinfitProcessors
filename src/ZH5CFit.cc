@@ -564,8 +564,8 @@ void ZH5CFit::processEvent( LCEvent * evt ) {
             message<MESSAGE>( log()  << "final four-vector of ISR photon: " << *(photon) ) ;
 	 }
 
-         message<MESSAGE>( log()  << "final mass of Z: " << z.getMass(1) ) ;
-	 message<MESSAGE>( log()  << "final mass of H: " << h.getMass(1) ) ;
+         message<ERROR>( log()  << "final mass of Z: " << z.getMass(1) ) ;
+	 message<ERROR>( log()  << "final mass of H: " << h.getMass(1) ) ;
 
          int ierr = fitter.getError();
          hFitError->fill( ierr ) ;
@@ -609,6 +609,8 @@ void ZH5CFit::processEvent( LCEvent * evt ) {
              bestnit  = nit;
              bestmassZ = z.getMass(1);
              bestmassH = h.getMass(1);
+             message<ERROR>( log()  << "final mass of Z: " << z.getMass(1) ) ;
+      message<ERROR>( log()  << "final mass of H: " << h.getMass(1) ) ;
              beststartmassZ = startmassZ;
              beststartmassH = startmassH;
              bestphotonenergy = photon->getE();
@@ -668,30 +670,30 @@ void ZH5CFit::processEvent( LCEvent * evt ) {
 
 
       Zfitrec->setMomentum(Zmomentum);
-      message<DEBUG>( log() << "  Zmomentum :   "
+      message<ERROR>( log() << "  Zmomentum :   "
                          << Zfitrec->getMomentum()[0] << "," << Zfitrec->getMomentum()[1]<<","<< Zfitrec->getMomentum()[2]);
 
       Zfitrec->setEnergy(permutedjets[0]->getE()+permutedjets[0]->getE());
-      message<DEBUG>( log() << " Energy Z:   "
+      message<ERROR>( log() << " Energy Z:   "
                          << Zfitrec->getEnergy()) ;
       Zfitrec->setMass(bestmassZ);
-      message<DEBUG>( log() << " Mass Z:   "
+      message<ERROR>( log() << " Mass Z:   "
                          << Zfitrec->getMass()) ;
       Zfitrec->setType (23);
-      message<DEBUG>( log() << " IS Z :   "
+      message<ERROR>( log() << " IS Z :   "
                          << Zfitrec->getType()) ;
       OutputCol->addElement(Zfitrec);
 
 
       Hfitrec->setMomentum(Hmomentum);
       Hfitrec->setEnergy(permutedjets[2]->getE()+permutedjets[3]->getE());
-      message<DEBUG>( log() << " Energy H:   "
+      message<ERROR>( log() << " Energy H:   "
                          << Hfitrec->getEnergy()) ;
-      Zfitrec->setMass(bestmassH);
-      message<DEBUG>( log() << " Mass Z:   "
-                         << Zfitrec->getMass()) ;
+      Hfitrec->setMass(bestmassH);
+      message<ERROR>( log() << " Mass H:   "
+                         << Hfitrec->getMass()) ;
       Hfitrec->setType (25);
-      message<DEBUG>( log() << " IS H:   "
+      message<ERROR>( log() << " IS H:   "
                          << Hfitrec->getType()) ;
       OutputCol->addElement(Hfitrec);
 
