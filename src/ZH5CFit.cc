@@ -564,8 +564,6 @@ void ZH5CFit::processEvent( LCEvent * evt ) {
             message<MESSAGE>( log()  << "final four-vector of ISR photon: " << *(photon) ) ;
 	 }
 
-         message<ERROR>( log()  << "final mass of Z: " << z.getMass(1) ) ;
-	 message<ERROR>( log()  << "final mass of H: " << h.getMass(1) ) ;
 
          int ierr = fitter.getError();
          hFitError->fill( ierr ) ;
@@ -609,8 +607,6 @@ void ZH5CFit::processEvent( LCEvent * evt ) {
              bestnit  = nit;
              bestmassZ = z.getMass(1);
              bestmassH = h.getMass(1);
-             message<ERROR>( log()  << "final mass of Z: " << z.getMass(1) ) ;
-      message<ERROR>( log()  << "final mass of H: " << h.getMass(1) ) ;
              beststartmassZ = startmassZ;
              beststartmassH = startmassH;
              bestphotonenergy = photon->getE();
@@ -644,56 +640,56 @@ void ZH5CFit::processEvent( LCEvent * evt ) {
            }
          }
          else {
-           message<WARNING>( log() << "FIT ERROR = " << fitter.getError()
+            message<WARNING>( log() << "FIT ERROR = " << fitter.getError()
                                    << " in event " << evt->getEventNumber()
                                    << " for permutation " << iperm
                                    << ", not filling histograms!"  ) ;
-           message<WARNING>( log()  << "start mass of Z: " << startmassZ) ;
-	   message<WARNING>( log()  << "start mass of H: " << startmassH ) ;
-           message<WARNING>( log()  << "final mass of Z: " << z.getMass(1) ) ;
-	   message<WARNING>( log()  << "final mass of H: " << h.getMass(1) ) ;
+                                   message<WARNING>( log()  << "start mass of Z: " << startmassZ) ;
+	          message<WARNING>( log()  << "start mass of H: " << startmassH ) ;
+            message<WARNING>( log()  << "final mass of Z: " << z.getMass(1) ) ;
+	          message<WARNING>( log()  << "final mass of H: " << h.getMass(1) ) ;
 
 	 }
          delete photon;
-         message<MESSAGE>( log() << "end permutation.......... ") ;
+         message<MESSAGE>( log() << "end permutation") ;
        }//permutation ends
 
 
       ISRfitrec->setMomentum(ISRmomentum);
       ISRfitrec->setEnergy(bestphotonenergy);
-      message<MESSAGE>( log() << " Energy ISR:   "
+      message<DEBUG>( log() << " Energy ISR:   "
                          << ISRfitrec->getEnergy()) ;
       ISRfitrec->setType (22);
-      message<MESSAGE>( log() << " IS ISR:   "
+      message<DEBUG>( log() << " IS ISR:   "
                          << ISRfitrec->getType()) ;
       OutputCol->addElement(ISRfitrec);
 
 
       Zfitrec->setMomentum(Zmomentum);
-      message<ERROR>( log() << "  Zmomentum :   "
+      message<DEBUG>( log() << "  Zmomentum :   "
                          << Zfitrec->getMomentum()[0] << "," << Zfitrec->getMomentum()[1]<<","<< Zfitrec->getMomentum()[2]);
 
       Zfitrec->setEnergy(permutedjets[0]->getE()+permutedjets[0]->getE());
-      message<ERROR>( log() << " Energy Z:   "
+      message<DEBUG>( log() << " Energy Z:   "
                          << Zfitrec->getEnergy()) ;
       Zfitrec->setMass(bestmassZ);
-      message<ERROR>( log() << " Mass Z:   "
+      message<DEBUG>( log() << " Mass Z:   "
                          << Zfitrec->getMass()) ;
       Zfitrec->setType (23);
-      message<ERROR>( log() << " IS Z :   "
+      message<DEBUG>( log() << " IS Z :   "
                          << Zfitrec->getType()) ;
       OutputCol->addElement(Zfitrec);
 
 
       Hfitrec->setMomentum(Hmomentum);
       Hfitrec->setEnergy(permutedjets[2]->getE()+permutedjets[3]->getE());
-      message<ERROR>( log() << " Energy H:   "
+      message<DEBUG>( log() << " Energy H:   "
                          << Hfitrec->getEnergy()) ;
       Hfitrec->setMass(bestmassH);
-      message<ERROR>( log() << " Mass H:   "
+      message<DEBUG>( log() << " Mass H:   "
                          << Hfitrec->getMass()) ;
       Hfitrec->setType (25);
-      message<ERROR>( log() << " IS H:   "
+      message<DEBUG>( log() << " IS H:   "
                          << Hfitrec->getType()) ;
       OutputCol->addElement(Hfitrec);
 
