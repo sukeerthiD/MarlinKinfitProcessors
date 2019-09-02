@@ -146,7 +146,7 @@ ZH5CFit::ZH5CFit() : Processor("ZH5CFit") {
   registerInputCollection( 	LCIO::MCPARTICLE,
                                 "NeutrinoCorrection",
                                 "Collection of Corrected/Estimated neutrino energies from SemiLeptonic decays",
-                                _NuCorrector,
+                                _NuCorrector, //from yasser's code
                                 std::string("NuCorrect")
                                 );
 
@@ -175,6 +175,8 @@ void ZH5CFit::init() {
   //= 2*alpha/pi*( ln(s/m_e^2)-1 )
   ISRPzMaxB = std::pow((double)_isrpzmax,b);
 
+
+//write out a root file with information in branches
   _fout = new TFile(_outfile.c_str(),"recreate");
 
    ZHTree = new TTree("ZHTree","ZHTree");
@@ -199,10 +201,12 @@ void ZH5CFit::init() {
    ZHTree->Branch("jetmatchphi",&jetmatchphi,"jetmatchphi/I") ;
 }
 
+
+
 void ZH5CFit::processRunHeader( LCRunHeader* ) {
   _nRun++ ;
 }
-void ZH5CFit::compcorrect() //finds the jet with cross checking
+void ZH5CFit::compcorrect() //function that helps the code below to find the jet with cross checking
 {
       if(std::abs(delta_theta[bestjet_phi])<std::abs(delta_phi[bestjet_th])){
       // if(std::abs(diff_besttheta)<std::abs(diff_bestphi)){
@@ -248,15 +252,10 @@ void ZH5CFit::SetZero()
   beststartmassZ = 0., beststartmassH = 0.;
   startmassZ = 0., startmassH = 0.;
   bestphotonenergy = 0.;
-   besterr = 999;
-   bestzvalue = 10000.;
-   chi2startmassZ = 0.;
-   chi2startmassH = 0.;
-  // for (int i=0 ; i<3; i++){
-  // Zmomentum [i]=0.;
-  // Hmomentum [i]=0.;
-  // ISRmomentum [i]=0.;
-  // }setZero
+  besterr = 999;
+  bestzvalue = 10000.;
+  chi2startmassZ = 0.;
+  chi2startmassH = 0.;
   memset(Zmomentum, 0, sizeof(Zmomentum));
   memset(Hmomentum, 0, sizeof(Hmomentum));
   memset(ISRmomentum, 0, sizeof(ISRmomentum));
@@ -264,7 +263,7 @@ void ZH5CFit::SetZero()
   H_Energy=0.;
   chi2best=0.;
   errorcode=0.;
-     streamlog_out(DEBUG)  << "Values set to zero" <<std::endl;
+  streamlog_out(DEBUG)  << "Values set to zero" <<std::endl;
 
 }
 
@@ -399,10 +398,9 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
   HepLorentzVector lvec;
   HepLorentzVector jetvec;
 
-
   // fill histogram from LCIO data :
 
-  //////////////////   JETS ///////////////////////////
+   //---------------------------jet collection------------------------
 
      LCCollection* jetcol = evt->getCollection( _jetcolName ) ;
      if (jetcol != 0) {//jetcol is not null
@@ -424,15 +422,16 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
 
 
 
-   //---------------------------neutrino collection------------------------
+   //---------------------------SLD collection------------------------
+   // to find the # of SLD and the mother B and C indices
        LCCollection* sldcol = NULL;
        try{
        sldcol = evt->getCollection( _SLDCol );
-       streamlog_out(MESSAGE) << _SLDCol << " collection available*********" << std::endl;
+       streamlog_out(DEBUG) << _SLDCol << " collection available" << std::endl;
        }
        catch( lcio::DataNotAvailableException e )
        {
-       streamlog_out(WARNING) << _SLDCol << " collection not available****" << std::endl;
+       streamlog_out(WARNING) << _SLDCol << " collection not available" << std::endl;
        sldcol = NULL;
        }
        nSLDB=sldcol->getParameters().getIntVal("nBSLD");
@@ -447,56 +446,59 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
        streamlog_out(MESSAGE) << "Number of Semi-Leptonic decay of C-Hadron: " << nSLDC << std::endl;
        streamlog_out(MESSAGE) << "Total Number of Semi-Leptonic decays: " << nSLDBC << std::endl;
 
+   //---------------------------neutrino collection------------------------
+   //to find energy of NeutrinoCorrection
+
 
        LCCollection* nucol = NULL;
        try{
        nucol = evt->getCollection( _NuCorrector );
-       streamlog_out(MESSAGE) << _NuCorrector << " collection available*********" << std::endl;
+       streamlog_out(DEBUG) << _NuCorrector << " collection available" << std::endl;
        }
        catch( lcio::DataNotAvailableException e )
        {
-       streamlog_out(WARNING) << _NuCorrector << " collection not available****" << std::endl;
+       streamlog_out(WARNING) << _NuCorrector << " collection not available" << std::endl;
        nucol = NULL;
        }
-       ENuplus=0.;
-       ENuminus=0.;
-       ENuplus=nucol->getParameters().getFloatVal("recENuPlus");
-       ENuminus=nucol->getParameters().getFloatVal("recENuMinus");
+       E_Nu_plus=0.;
+       E_Nu_minus=0.;
+       E_Nu_plus=nucol->getParameters().getFloatVal("recE_Nu_plus");
+       E_Nu_minus=nucol->getParameters().getFloatVal("recE_Nu_minus");
+       //add neutrino px, py, pz and then add it to the jets
 
+   //additionally, to find the index of B and C in order to assign energy of neutrino in the "vector"
 
        for ( int i=0; i< B_index.size(); i++){
-         streamlog_out(DEBUG) << " Index of B[" << i <<"]: " << B_index[i] << std::endl;
+         streamlog_out(MESSAGE) << " Index of B[" << i <<"]: " << B_index[i] << std::endl;
        }
        for ( int i=0; i< C_index.size(); i++){
-         streamlog_out(DEBUG) << " Index of C[" << i <<"]: " << C_index[i] << std::endl;
+         streamlog_out(MESSAGE) << " Index of C[" << i <<"]: " << C_index[i] << std::endl;
        }
 
-       // TLorentzVector l_3p(0,0,0,0);
+
+       //---------------------------MC collection------------------------
+       //to find lepton's direction
+
        HepLorentzVector l_3p;
        LCCollection* mccol = evt->getCollection( _colMCP ) ;
               if(nSLDB == 1 && nSLDC == 0)  {
-                streamlog_out(DEBUG)  << "SLD-B is 1      ------******************" << std::endl ;
+                streamlog_out(DEBUG)  << "SLD-B is 1 " << std::endl ;
                  if(B_index.size()!=0){
                    for (int nB=0; nB<B_index.size(); nB++ ){
                      MCParticle* mcpB = dynamic_cast<MCParticle*>( mccol->getElementAt(B_index[nB])) ;
                      MCParticleVec mcpBD = mcpB->getDaughters() ;
-                     for(int nBD=0; nBD<mcpBD.size(); nBD++){
-                       // streamlog_out(ERROR)  << "PDG OF DAUGHTER:[" << nBD<< "], is " << mcpBD[nBD]->getPDG() <<std::endl ;
-                       if((std::abs(mcpBD[nBD]->getPDG()) == 11) || (std::abs(mcpBD[nBD]->getPDG()) == 13) || (std::abs(mcpBD[nBD]->getPDG()) == 15)){
+                     for(int nBD=0; nBD<mcpBD.size(); nBD++){if((std::abs(mcpBD[nBD]->getPDG()) == 11) || (std::abs(mcpBD[nBD]->getPDG()) == 13) || (std::abs(mcpBD[nBD]->getPDG()) == 15)){
                          l_theta=0. ; l_phi=0.;
-                         // l_3p = TLorentzVector(mcpBD[nBD]->getMomentum(), mcpBD[nBD]->getEnergy());
-                         // l_p=std::sqrt((pow(l_3p[0],2)+pow(l_3p[1],2)+pow(l_3p[2],2)));
-                         // l_theta=acos(l_3p[2]/l_p);
-                         // l_phi=atan(l_3p[1]/l_3p[0]);
                          l_3p = HepLorentzVector (mcpBD[nBD]->getMomentum()[0],mcpBD[nBD]->getMomentum()[1],mcpBD[nBD]->getMomentum()[2], mcpBD[nBD]->getEnergy());
                          l_theta=l_3p.theta();
                          l_phi=l_3p.phi();
+                         streamlog_out(DEBUG)  << "=========================================== "<<std::endl ;
                          streamlog_out(DEBUG)  << "lepton px= " <<l_3p[0] << ", py= " <<l_3p[1]  << ", pz= " <<l_3p[2] <<", E= " << l_3p[3] <<std::endl ;
                          streamlog_out(DEBUG)  << "lepton theta= " <<l_theta<< ", phi= " <<l_phi <<std::endl ;
                          streamlog_out(DEBUG)  << "=========================================== "<<std::endl ;
                        }
                        if((std::abs(mcpBD[nBD]->getPDG()) == 12) || (std::abs(mcpBD[nBD]->getPDG()) == 14) || (std::abs(mcpBD[nBD]->getPDG()) == 16)){
-                         streamlog_out(DEBUG) << " ENuplus:  "<< ENuplus << ", ENuminus: "<< ENuminus << std::endl;
+                         streamlog_out(DEBUG) << " E_Nu_plus:  "<< E_Nu_plus << ", E_Nu_minus: "<< E_Nu_minus << std::endl;
                        }
                      }
                    }
@@ -514,9 +516,10 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
        float bestphi =100.;
        bestjet_th=0;
        bestjet_phi=0;
-       bestjet=1000000;
+       bestjet=10000;
        float diff_besttheta;
        float diff_bestphi;
+
 //-----------------------------------find the jet which should have the neutrino-------------------
 
       if(nSLDB == 1 && nSLDC == 0){// if # SLD-B =1
@@ -579,17 +582,15 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
 
 
 
-
 // original fit objects - save for next permutation
+
      JetFitObject* j1 = 0;
      JetFitObject* j2 = 0;
      JetFitObject* j3 = 0;
      JetFitObject* j4 = 0;
-      // if (nSLDB == 1 && nSLDC == 0){
-      //    NuEne[0]=ENuplus;
-      //    NuEne[1]=ENuminus;
-      // }
+
      SetZero();
+
  if (_useErrorFlow){
    streamlog_out(DEBUG)  << "Using ErrorFlow...." <<std::endl;
  }
@@ -597,9 +598,9 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
    streamlog_out(DEBUG)  << "Using NeutrinoCorrection...." <<std::endl;
  }
     ReconstructedParticle* jrps[4];
-    for(int nuenesign=0; nuenesign<2; nuenesign++){//neutrino correction + and - loop
+    for(int nu_ene_sign=0; nu_ene_sign<2; nu_ene_sign++){//neutrino correction + and - loop
 
-      message<MESSAGE>( log()  << "nuenesign: " << nuenesign ) ;
+      message<MESSAGE>( log()  << "nu_ene_sign: " << nu_ene_sign ) ;
        for(int i=0; i< nJETS ; i++){//loop over nJets
 
           ReconstructedParticle* j = dynamic_cast<ReconstructedParticle*>( jetcol->getElementAt( i ) ) ;
@@ -609,6 +610,9 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
                        << " found jet in event " << evt->getEventNumber()
                        << "  in run "          << evt->getRunNumber()
                        ) ;
+
+
+      // to find the error on theta and phi
              Px=j->getMomentum()[0];
              Px2=std::pow(Px,2);
              Py=j->getMomentum()[1];
@@ -637,24 +641,24 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
              JetResPhi=SigPx2*std::pow(dth_dpx,2)+SigPy2*std::pow(dth_dpy,2)+2*(SigPxSigPy*dth_dpx*dth_dpy);
 
 
-                streamlog_out(DEBUG4)  << "SigPx2= " << SigPx2 <<std::endl;
-                streamlog_out(DEBUG4)  << "SigPxSigPy= " << SigPxSigPy <<std::endl;
-                streamlog_out(DEBUG4)  << "SigPxSigPz= " << SigPxSigPz <<std::endl;
-                streamlog_out(DEBUG4)  << "SigPy2= " <<  SigPy2<<std::endl;
-                streamlog_out(DEBUG4)  << "SigPySigPz= " << SigPySigPz <<std::endl;
-                streamlog_out(DEBUG4)  << "SigPz2= " << SigPz2 <<std::endl;
-                streamlog_out(DEBUG4)  << "SigE2= " << SigE2 <<std::endl;
+              streamlog_out(DEBUG4)  << "SigPx2= " << SigPx2 <<std::endl;
+              streamlog_out(DEBUG4)  << "SigPxSigPy= " << SigPxSigPy <<std::endl;
+              streamlog_out(DEBUG4)  << "SigPxSigPz= " << SigPxSigPz <<std::endl;
+              streamlog_out(DEBUG4)  << "SigPy2= " <<  SigPy2<<std::endl;
+              streamlog_out(DEBUG4)  << "SigPySigPz= " << SigPySigPz <<std::endl;
+              streamlog_out(DEBUG4)  << "SigPz2= " << SigPz2 <<std::endl;
+              streamlog_out(DEBUG4)  << "SigE2= " << SigE2 <<std::endl;
 
-                streamlog_out(DEBUG)  << "Px= " << Px <<std::endl;
-                streamlog_out(DEBUG)  << "Py= " << Py <<std::endl;
-                streamlog_out(DEBUG)  << "Pz= " << Pz <<std::endl;
-
-
-                streamlog_out(DEBUG)  << "JetResE= " << JetResE <<std::endl;
-                streamlog_out(DEBUG)  << "JetResTheta= " << JetResTheta <<std::endl;
-                streamlog_out(DEBUG)  << "JetResPhi= " << JetResPhi <<std::endl;
+              streamlog_out(DEBUG)  << "Px= " << Px <<std::endl;
+              streamlog_out(DEBUG)  << "Py= " << Py <<std::endl;
+              streamlog_out(DEBUG)  << "Pz= " << Pz <<std::endl;
 
 
+              streamlog_out(DEBUG)  << "JetResE= " << JetResE <<std::endl;
+              streamlog_out(DEBUG)  << "JetResTheta= " << JetResTheta <<std::endl;
+              streamlog_out(DEBUG)  << "JetResPhi= " << JetResPhi <<std::endl;
+
+// when covariance matrix from ErrorFlow is 0
 		if(SigPx2==0. || SigPxSigPy==0. || SigPxSigPz==0. || SigPy2==0. || SigPySigPz==0. || SigPz2==0. || SigE2==0.){
 			streamlog_out(WARNING) << "Covariance Matrix is singular"<<std::endl;
 			streamlog_out(WARNING) << "Setting theta and phi Resolution back to previous values "<<std::endl;
@@ -662,64 +666,65 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
 			JetResPhi=0.1;
 			nCo++;
 		}
+
              lvec = HepLorentzVector ((j->getMomentum())[0],(j->getMomentum())[1],(j->getMomentum())[2],j->getEnergy());
              float NuEnergy[2]={0.,0.};
              if (_NuE){
                if (i == bestjet){
                  correction++;
-                 NuEnergy[0]=ENuplus;
-                 NuEnergy[1]=ENuminus;
-                 message<DEBUG>( log()  << " added neutrino energy to the best-jet "<< NuEnergy[nuenesign]) ;
+                 NuEnergy[0]=E_Nu_plus;
+                 NuEnergy[1]=E_Nu_minus;
+                 message<DEBUG>( log()  << " added neutrino energy to the best-jet "<< NuEnergy[nu_ene_sign]) ;
                }
              }
 
-             if (_useErrorFlow){
+             if (_useErrorFlow){ //when ErrorFlow is used
                if (i == 0 ) {
-                 j1 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j1 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetResE*sigmaScaleFactor, JetResTheta, JetResPhi, lvec.m());
                  j1->setName("Jet1");
                  message<DEBUG>( log()  << " start four-vector of first  jet: " << *j1  ) ;
                 }
                else if (i == 1) {
-                 j2 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j2 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetResE*sigmaScaleFactor, JetResTheta, JetResPhi, lvec.m());
                  j2->setName("Jet2");
                  message<DEBUG>( log() << " start four-vector of second  jet: " << *j2  ) ;
                 }
                else if (i == 2) {
-                 j3 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j3 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetResE*sigmaScaleFactor, JetResTheta, JetResPhi, lvec.m());
                  j3->setName("Jet3");
                  message<DEBUG>( log() << " start four-vector of third  jet: " << *j3  ) ;
                 }
                else if (i == 3) {
-                 j4 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j4 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetResE*sigmaScaleFactor, JetResTheta, JetResPhi, lvec.m());
                  j4->setName("Jet4");
                    message<DEBUG>( log() << " start four-vector of forth  jet: " << *j4  ) ;
                 }
              }
-             else{
+             else{ //when errorflow is not used i.e. error on E is 120%/sqrt(E); error on theta and phi is 0.1
                if (i == 0 ) {
-                 j1 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j1 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetEnergyResolution(lvec.e()), _errtheta, _errphi, lvec.m());
                  j1->setName("Jet1");
                  message<DEBUG>( log()  << " start four-vector of first  jet: " << *j1  ) ;
                 }
                else if (i == 1) {
-                 j2 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j2 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetEnergyResolution(lvec.e()), _errtheta, _errphi, lvec.m());
                  j2->setName("Jet2");
                  message<DEBUG>( log() << " start four-vector of second  jet: " << *j2  ) ;
                 }
                else if (i == 2) {
-                 j3 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j3 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetEnergyResolution(lvec.e()), _errtheta, _errphi, lvec.m());
                  j3->setName("Jet3");
                  message<DEBUG>( log() << " start four-vector of third  jet: " << *j3  ) ;
                 }
                else if (i == 3) {
-                 j4 = new JetFitObject (lvec.e()+NuEnergy[nuenesign], lvec.theta(), lvec.phi(),
+                 j4 = new JetFitObject (lvec.e()+NuEnergy[nu_ene_sign], lvec.theta(), lvec.phi(),
                     JetEnergyResolution(lvec.e()), _errtheta, _errphi, lvec.m());
                  j4->setName("Jet4");
                    message<DEBUG>( log() << " start four-vector of forth  jet: " << *j4  ) ;
@@ -834,17 +839,18 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
              for (int i = 0; i < NJETS; ++i)
               pzc.addToFOList (*(permutedjets[i]));
 
-                E_lab= 2*sqrt(std::pow(0.548579909e-3,2) + std::pow(250.,2) + std::pow(3.5,2) + 0. + 0.);
+              // the total energy should add up to E_lab due to crossing angle boost in px direction
+            E_lab= 2*sqrt(std::pow(0.548579909e-3,2) + std::pow(250.,2) + std::pow(3.5,2) + 0. + 0.);
 
             MomentumConstraint ec(1, 0, 0, 0, E_lab);
             ec.setName("sum(E)");
             for (int i = 0; i < NJETS; ++i)
             ec.addToFOList (*(permutedjets[i]));
 
-                message<MESSAGE>( log()  << "Value of pxc before fit: " << pxc.getValue() ) ;
-    	    message<MESSAGE>( log()  << "Value of pyc before fit: " << pyc.getValue() ) ;
-    	    message<MESSAGE>( log()  << "Value of pzc before fit: " << pzc.getValue() ) ;
-    	    message<MESSAGE>( log()  << "Value of ec before fit: " << ec.getValue() ) ;
+            message<MESSAGE>( log()  << "Value of pxc before fit: " << pxc.getValue() ) ;
+            message<MESSAGE>( log()  << "Value of pyc before fit: " << pyc.getValue() ) ;
+            message<MESSAGE>( log()  << "Value of pzc before fit: " << pzc.getValue() ) ;
+            message<MESSAGE>( log()  << "Value of ec before fit: " << ec.getValue() ) ;
 
 
              // ISR Photon initialized with missing p_z
@@ -1062,7 +1068,7 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
       }//neutrino correction + and - loop
 
 
-//*******write something
+//output collection with Z, H, ISR 's mass, energy, momentum
       LCCollectionVec *OutputCol = new LCCollectionVec(LCIO::RECONSTRUCTEDPARTICLE);
       ReconstructedParticleImpl* ISRfitrec = new ReconstructedParticleImpl;
       ReconstructedParticleImpl* Zfitrec = new ReconstructedParticleImpl;
@@ -1153,14 +1159,10 @@ void ZH5CFit::processEvent( LCEvent * evt ) { //event start
        ZHTree->Fill();
        evt->addCollection( OutputCol, _OutCol.c_str() );
 
-    //}// end if # SLD-B =1
-    // else{
-    //   streamlog_out(ERROR) << "BREAK*********" << std::endl;
-    // }
-}//end if jetcol is not null
+}
 
 
-	streamlog_out(DEBUG4) << "next event******************" << std::endl;
+	streamlog_out(DEBUG4) << "--------------next event----------------" << std::endl;
 
   _nEvt ++ ;
 }//event end

@@ -123,8 +123,8 @@ class ZH5CFit : public Processor {
   int _useErrorFlow{};
   float sigmaScaleFactor{};
   std::string  _NuCorrector{};
-  float ENuplus{};
-  float ENuminus{};
+  float E_Nu_plus{};
+  float E_Nu_minus{};
   float l_px{};
   float l_py{};
   float l_pz{};
